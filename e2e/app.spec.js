@@ -18,6 +18,8 @@ test('example uploads, statistics, search, filters, downloads and reset', async 
   await expect(page.locator('tbody tr')).toHaveCount(7);
   const stats = page.locator('.stat strong');
   await expect(stats).toHaveText(['6', '6', '3', '2', '2', '0']);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({ path: 'test-results/desktop.png', fullPage: true });
   await page.getByLabel('Filter issue type').selectOption('Quantity mismatch');
   await expect(page.locator('tbody tr')).toHaveCount(2);
   await page.getByLabel('Search results').fill('brass');
