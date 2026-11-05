@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import Papa from 'papaparse';
-import { parseInventory, compareInventories, reportCsv } from './inventory';
+import { parseInventory, compareInventories, reportCsv, fullComparisonCsv } from './inventory';
 const header = 'sku,product_name,quantity\n';
 const parse = (rows, source = 'A') => parseInventory(header + rows, source);
 const compare = (a, b) => compareInventories(parse(a), parse(b, 'B'));
@@ -77,5 +77,32 @@ describe('inventory validation and comparison', () => {
     const csv = reportCsv([{ type: 'Missing from B', sku: '=1+1', name: '@SUM(1)', a: 1, b: null, difference: null }]);
     const row = Papa.parse(csv, { header: true }).data[0];
     expect(row.sku).toBe("'=1+1"); expect(row.product_name).toBe("'@SUM(1)");
+  });
+});
+
+describe('full comparison CSV', () => {
+  const exported = rows => Papa.parse(fullComparisonCsv(rows), { header: true }).data;
+  it('includes matches, signed differences and missing SKUs with blank quantities', () => {
+    const rows = exported(compare('a,Apple,0\nb,"Lamp, brass",4\nc,Cherry,2\nd,Date,1', 'a,Apple,0\nb,Lamp,1\nc,Cherry,5\ne,Elderberry,7'));
+    expect(rows.map(r => r.comparison_status)).toEqual(['Match', 'Quantity mismatch', 'Quantity mismatch', 'Missing from B', 'Missing from A']);
+    expect(rows[0]).toEqual({ sku: 'a', product_name: 'Apple', inventory_a_quantity: '0', inventory_b_quantity: '0', difference_b_minus_a: '0', comparison_status: 'Match' });
+    expect(rows[1].product_name).toBe('Lamp, brass');
+    expect(rows.map(r => r.difference_b_minus_a)).toEqual(['0', '-3', '3', '', '']);
+    expect(rows[3].inventory_b_quantity).toBe('');
+    expect(rows[4].inventory_a_quantity).toBe('');
+  });
+  it('excludes SKUs invalid or duplicated in either inventory', () => {
+    const rows = exported(compare('a,Apple,1\na,Apple,2\nb,Banana,nope\nc,Cherry,3\nd,Date,4\ne,End,0', 'a,Apple,1\nb,Banana,2\nc,Cherry,nope\nd,Date,1\nd,Date,2\ne,End,0'));
+    expect(rows.map(r => r.sku)).toEqual(['e']);
+  });
+  it('exports only headers when file-level validation prevents comparison', () => {
+    const rows = compareInventories(parseInventory('', 'A'), parse('a,Apple,1', 'B'));
+    expect(fullComparisonCsv(rows)).toBe('sku,product_name,inventory_a_quantity,inventory_b_quantity,difference_b_minus_a,comparison_status\r\n');
+  });
+  it.each(['=1+1', '+SUM(1)', '-1+2', '@SUM(1)'])('escapes formula-like SKU and multiline product text %s', value => {
+    const input = Papa.unparse([{sku: value, product_name: value + ',"quoted"\nnext', quantity: 1}]);
+    const rows = exported(compareInventories(parseInventory(input, 'A'), parseInventory(input, 'B')));
+    expect(rows[0].sku).toBe("'" + value);
+    expect(rows[0].product_name).toBe("'" + value + ',"quoted"\nnext');
   });
 });

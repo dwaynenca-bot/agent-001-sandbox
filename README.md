@@ -1,6 +1,6 @@
 # Stock Integrity Watchdog 0.1
 
-A responsive, browser-only dashboard for comparing two stock inventory CSV files. Upload Inventory A (reference) and Inventory B, review validation problems and stock differences, search/filter results, and download an issues-only CSV report. Downloadable examples deliberately include two quantity mismatches and one missing SKU in each direction.
+A responsive, browser-only dashboard for comparing two stock inventory CSV files. Upload Inventory A (reference) and Inventory B, review validation problems and stock differences, search/filter results, and download an issues-only CSV report or a full comparison CSV. Downloadable examples deliberately include two quantity mismatches and one missing SKU in each direction.
 
 ## Run locally
 
@@ -11,7 +11,7 @@ npm ci --cache .npm-cache
 npm run dev -- --host 127.0.0.1
 ```
 
-Open the local address printed by Vite. Use the existing repository checkout; no worktree is needed. Download both example CSVs from the upload panels, then upload each into its corresponding panel. Expected: 6 unique SKUs per file, 3 matching SKUs, 2 quantity mismatches, 2 missing SKUs, and no duplicate warnings. Export includes all detected issues, regardless of the table's active search or filter. Reset clears loaded inventory and filters.
+Open the local address printed by Vite. Use the existing repository checkout; no worktree is needed. Download both example CSVs from the upload panels, then upload each into its corresponding panel. Expected: 6 unique SKUs per file, 3 matching SKUs, 2 quantity mismatches, 2 missing SKUs, and no duplicate warnings. Export includes all detected issues, regardless of the table's active search or filter. Download Full Comparison CSV includes every eligible match, quantity mismatch and missing SKU, regardless of search, filters or pagination. Columns include SKU, product name (from A when present and nonempty, otherwise B), both quantities, B − A difference and comparison status. Missing quantities and differences stay blank. Invalid and duplicate SKUs are excluded; file-level errors disable this export. Both exports protect text against spreadsheet formulas. Reset clears loaded inventory and filters.
 
 ## CSV format and validation
 
@@ -46,7 +46,7 @@ npm run build
 npm run test:e2e
 ```
 
-Vitest exercises parsing, validation, duplicate exclusion, SKU identity, stock arithmetic, and report escaping. Playwright runs five browser checks against the production build: examples/search/filter/export/reset, invalid and duplicate records, file-error recovery, identical inventories, and mobile layout. Run `npm run build` before browser tests.
+Vitest exercises parsing, validation, duplicate exclusion, SKU identity, stock arithmetic, and report escaping. Playwright runs browser checks against the production build: examples/search/filter/export/reset, invalid and duplicate records, file-error recovery, identical inventories, and mobile layout. Run `npm run build` before browser tests.
 
 The browser configuration defaults to the system Chromium at `/usr/bin/chromium` used in this environment. Elsewhere install a compatible Chromium and set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to its executable path. The browser tests start and stop their own local preview on port 4173; that port must be free.
 

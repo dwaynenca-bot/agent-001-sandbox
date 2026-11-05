@@ -66,9 +66,17 @@ export function compareInventories(a, b) {
 }
 
 // Spreadsheet formula protection for user-controlled text, including SKU and product name.
+export function fullComparisonCsv(rows) {
+  const fields = ['sku', 'product_name', 'inventory_a_quantity', 'inventory_b_quantity', 'difference_b_minus_a', 'comparison_status'];
+  return Papa.unparse({ fields, data: rows.filter(row => ['Match', 'Quantity mismatch', 'Missing from A', 'Missing from B'].includes(row.type)).map(row => ({
+    sku: row.sku, product_name: row.name, inventory_a_quantity: row.a,
+    inventory_b_quantity: row.b, difference_b_minus_a: row.difference, comparison_status: row.type,
+  })) }, { escapeFormulae: /^[=+\-@\t\r]/ });
+}
+
 export function reportCsv(rows) {
   return Papa.unparse(rows.filter(row => row.type !== 'Match').map(row => ({
     issue: row.type, sku: row.sku, product_name: row.name, inventory_a_quantity: row.a,
     inventory_b_quantity: row.b, difference_b_minus_a: row.difference, source: row.source, record: row.row, detail: row.detail,
-  })), { escapeFormulae: true, columns: ['issue', 'sku', 'product_name', 'inventory_a_quantity', 'inventory_b_quantity', 'difference_b_minus_a', 'source', 'record', 'detail'] });
+  })), { escapeFormulae: /^[=+\-@\t\r]/, columns: ['issue', 'sku', 'product_name', 'inventory_a_quantity', 'inventory_b_quantity', 'difference_b_minus_a', 'source', 'record', 'detail'] });
 }
