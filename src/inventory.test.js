@@ -106,3 +106,50 @@ describe('full comparison CSV', () => {
     expect(rows[0].product_name).toBe("'" + value + ',"quoted"\nnext');
   });
 });
+
+describe('duplicate occurrence accumulation regressions', () => {
+  it('retains every record number for a heavily repeated normalized SKU', () => {
+    const count = 20000;
+    const a = parse(Array.from({ length: count }, (_, i) => `${i % 2 ? ' dup ' : 'dup'},Fictional,1`).join('\n'));
+    const records = Array.from({ length: count }, (_, i) => i + 2).join(', ');
+    expect(a.uniqueCount).toBe(1);
+    expect(a.duplicateCount).toBe(1);
+    expect([...a.records]).toEqual([]);
+    expect(a.issues).toEqual([{ type: 'Duplicate SKU', source: 'A', row: records, sku: 'dup', name: '', a: null, b: null, difference: null,
+      detail: `SKU occurs in records ${records}. All occurrences excluded from comparison.` }]);
+  });
+
+  it('preserves first-seen duplicate order, invalid-first issue order and case-sensitive identities', () => {
+    const a = parse(' b ,First,1\na,Second,2\nb,Invalid,nope\nsolo,Solo,0\n a ,Again,3\nB,Uppercase,4');
+    expect(a.uniqueCount).toBe(4);
+    expect(a.duplicateCount).toBe(2);
+    expect(a.issues.map(({ type, sku, row }) => ({ type, sku, row }))).toEqual([
+      { type: 'Invalid record', sku: 'b', row: 4 },
+      { type: 'Duplicate SKU', sku: 'b', row: '2, 4' },
+      { type: 'Duplicate SKU', sku: 'a', row: '3, 6' },
+    ]);
+    expect([...a.records.keys()]).toEqual(['solo', 'B']);
+    const rows = compareInventories(a, parse('a,Other,1\nb,Other,1\nsolo,Solo,0\nB,Uppercase,4', 'B'));
+    expect(rows.map(row => row.type)).toEqual(['Invalid record', 'Duplicate SKU', 'Duplicate SKU', 'Match', 'Match']);
+    expect(rows.filter(row => row.a !== null).map(row => row.sku)).toEqual(['solo', 'B']);
+  });
+
+  it('collects all occurrences even when the first and last quantities are invalid', () => {
+    const a = parse('x,Invalid first,nope\nx,Valid middle,1\nx,Invalid last,-1');
+    expect(a.issues.map(({ type, row }) => ({ type, row }))).toEqual([
+      { type: 'Invalid record', row: 2 }, { type: 'Invalid record', row: 4 }, { type: 'Duplicate SKU', row: '2, 3, 4' },
+    ]);
+    expect(compareInventories(a, parse('x,Other,1', 'B'))).toEqual(a.issues);
+  });
+
+  it('keeps duplicate diagnostics and formula protection in issues export and excludes duplicates from full export', () => {
+    const rows = compare('=1+1,First,1\n+keep,@SUM(1),4\n=1+1,Second,2', '=1+1,Other,1\n+keep,Other,1');
+    const issues = Papa.parse(reportCsv(rows), { header: true }).data;
+    expect(issues.map(row => row.issue)).toEqual(['Duplicate SKU', 'Quantity mismatch']);
+    expect(issues[0]).toMatchObject({ sku: "'=1+1", record: '2, 4', detail: 'SKU occurs in records 2, 4. All occurrences excluded from comparison.' });
+    expect(issues[1]).toMatchObject({ sku: "'+keep", product_name: "'@SUM(1)", difference_b_minus_a: '-3' });
+    expect(Papa.parse(fullComparisonCsv(rows), { header: true }).data).toEqual([
+      { sku: "'+keep", product_name: "'@SUM(1)", inventory_a_quantity: '4', inventory_b_quantity: '1', difference_b_minus_a: '-3', comparison_status: 'Quantity mismatch' },
+    ]);
+  });
+});

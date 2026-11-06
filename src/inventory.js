@@ -29,7 +29,8 @@ export function parseInventory(text, source) {
     if (!sku || /[\x00-\x1f\x7f]/.test(sku)) { issue('SKU must be nonempty and contain no control characters.', row, sku); valid = false; }
     else {
       unique.add(sku);
-      occurrences.set(sku, [...(occurrences.get(sku) || []), row]);
+      if (!occurrences.has(sku)) occurrences.set(sku, []);
+      occurrences.get(sku).push(row);
     }
     if (!/^\d+$/.test(quantity) || !Number.isSafeInteger(Number(quantity))) {
       issue('Quantity must be a nonnegative whole number within the safe integer range.', row, sku); valid = false;

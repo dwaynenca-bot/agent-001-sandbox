@@ -109,3 +109,54 @@ test('full export includes off-page and hidden records and resets safely', async
   await page.getByRole('button', { name: /Reset workspace/ }).click();
   await expect(button).toBeDisabled();
 });
+
+for (const width of [1440, 375]) {
+  test(`duplicate-heavy validation, exports and replacement recovery at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    const external = []; page.on('request', request => { if (!request.url().startsWith('http://127.0.0.1:4173/')) external.push(request.url()); });
+    await page.goto('/');
+    const repeated = 2000;
+    const a = 'sku,product_name,quantity\n' + [' dup ,First,1', 'bad,Invalid,nope', 'dup,Second,2', 'safe,"Lamp, brass",4', '+keep,@SUM(1),4', ...Array.from({ length: repeated }, () => 'dup,Fictional,1')].join('\n');
+    const b = 'sku,product_name,quantity\ndup,Other,1\nbad,Other,1\nsafe,Other,1\n+keep,Other,1';
+    await page.getByLabel('Upload Inventory A').setInputFiles(csv('duplicates.csv', a));
+    await page.getByLabel('Upload Inventory B').setInputFiles(csv('reference.csv', b));
+    await expect(page.getByText('Comparison complete.', { exact: false })).toBeVisible();
+    await expect(page.locator('.validation summary')).toContainText('2 validation problems');
+    const occurrenceRows = [2, 4, ...Array.from({ length: repeated }, (_, i) => i + 7)].join(', ');
+    await expect(page.locator('.validation li').last()).toContainText(`SKU occurs in records ${occurrenceRows}. All occurrences excluded from comparison.`);
+    await expect(page.locator('.stat strong')).toHaveText(['4', '4', '0', '2', '0', '1']);
+    await expect(page.locator('tbody tr')).toHaveCount(4);
+    await expect(page.locator('tbody')).not.toContainText('Missing from');
+    async function downloadRows(name) {
+      const pending = page.waitForEvent('download');
+      await page.getByRole('button', { name }).click();
+      return Papa.parse(await fs.readFile(await (await pending).path(), 'utf8'), { header: true }).data;
+    }
+    const issues = await downloadRows(/Export issues/);
+    expect(issues.map(row => row.issue)).toEqual(['Invalid record', 'Duplicate SKU', 'Quantity mismatch', 'Quantity mismatch']);
+    expect(issues[1]).toMatchObject({ sku: 'dup', record: occurrenceRows });
+    expect(issues[3]).toMatchObject({ sku: "'+keep", product_name: "'@SUM(1)", difference_b_minus_a: '-3' });
+    const full = await downloadRows('Download Full Comparison CSV');
+    expect(full.map(row => row.sku)).toEqual(['safe', "'+keep"]);
+    expect(full.map(row => row.difference_b_minus_a)).toEqual(['-3', '-3']);
+    await page.getByLabel('Filter issue type').selectOption('Duplicate SKU');
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await page.getByLabel('Search results').fill('dup');
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    expect(await downloadRows('Download Full Comparison CSV')).toEqual(full);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: `${process.env.WATCHDOG_EVIDENCE_DIR || 'test-results'}/duplicates-${width}.png`, fullPage: true });
+    await page.getByLabel('Filter issue type').selectOption('All results');
+    await page.getByLabel('Search results').fill('');
+    await page.getByLabel('Upload Inventory A').setInputFiles(csv('corrected.csv', b));
+    await expect(page.locator('.validation')).toHaveCount(0);
+    await expect(page.locator('tbody tr')).toHaveCount(4);
+    await expect(page.locator('tbody .match')).toHaveCount(4);
+    await expect(page.getByRole('button', { name: /Export issues/ })).toBeDisabled();
+    await page.getByRole('button', { name: /Reset workspace/ }).click();
+    await expect(page.getByText('Your comparison starts here')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download Full Comparison CSV' })).toBeDisabled();
+    expect(errors).toEqual([]); expect(external).toEqual([]);
+  });
+}
