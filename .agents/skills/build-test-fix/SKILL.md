@@ -57,3 +57,7 @@ Provide:
 - **Review/approval needed:** what the owner should inspect or approve next.
 
 Do not claim that the prototype has been deployed, is production-ready, or can operate continuously unless independently verified. For user-requested cloud work, follow the execution environment's runtime limits, available tools and permission prompts.
+
+## Reusable verification toolkit
+
+Use [the local quality toolkit](../../../tools/quality/README.md) for configured unit/lint/build/browser/audit evidence. Review commands before running; no automatic fixes or installs. Use [the readiness checklist](../../../docs/quality/release-checklist.md) and record PASS, FAIL, NOT TESTED or BLOCKED with evidence levels. A local/mock pass never establishes live security or release authority. Preserve pending human tests.

@@ -1,0 +1,37 @@
+{
+  "name": "Fictional Garden Scheduler",
+  "cwd": "/tmp/agent-001-next-app",
+  "checks": [
+    {
+      "id": "unit",
+      "command": [
+        "npm",
+        "run",
+        "test"
+      ],
+      "level": "local-source"
+    },
+    {
+      "id": "lint",
+      "command": [
+        "npm",
+        "run",
+        "lint"
+      ],
+      "level": "local-source"
+    },
+    {
+      "id": "build",
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "level": "local-source"
+    }
+  ],
+  "pending": [
+    "Configure browser scripts with desktop and 375px projects before use",
+    "Supply approved independent identities before any live tenant testing"
+  ]
+}

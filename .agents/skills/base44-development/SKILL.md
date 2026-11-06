@@ -94,3 +94,7 @@ For read-only walkthroughs, report identity, framework, instruction paths, curre
 - App-specific remote-development reference: `https://app.base44.com/api/sandbox/<APP_ID>/claude-web/readme.md` (substitute the verified ID).
 
 Prefer the currently connected tool contracts and app-specific profile over remembered commands. Repository skills guide behaviour; they do not grant platform permissions or override the owner's task restrictions.
+
+## Reusable security verification
+
+Use [the toolkit](../../../tools/quality/README.md) for sanitized configuration/scan inspection and [the live tenant procedure](../../../docs/quality/tenant-testing.md) for separately approved ordinary-user tests. Inspect every scan group and ignored finding; run full and production npm audits independently. Trace transitive parents and actual usage before removal/upgrades; verify managed plugin compatibility, never force fixes. Explicit test routing does not isolate authentication; retained test data and branch-shared datasets must be preserved. Record source-copy/mock evidence separately from live enforcement and keep [pending tests](../../../docs/quality/pending-tests.md) unresolved until valid evidence exists.

@@ -1,0 +1,69 @@
+{
+  "name": "hearth-local",
+  "cwd": "../../../prototypes/home-improvement-enquiry",
+  "checks": [
+    {
+      "id": "unit",
+      "command": [
+        "npm",
+        "run",
+        "test"
+      ],
+      "level": "local-source"
+    },
+    {
+      "id": "build",
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "level": "local-source"
+    },
+    {
+      "id": "browser",
+      "command": [
+        "npm",
+        "run",
+        "test:browser"
+      ],
+      "level": "local-source"
+    },
+    {
+      "id": "dependency-tree",
+      "kind": "command",
+      "command": [
+        "npm",
+        "ls",
+        "--all"
+      ],
+      "level": "tooling"
+    },
+    {
+      "id": "audit-full",
+      "kind": "audit",
+      "command": [
+        "npm",
+        "audit",
+        "--json"
+      ],
+      "level": "tooling"
+    },
+    {
+      "id": "audit-production",
+      "kind": "audit",
+      "command": [
+        "npm",
+        "audit",
+        "--omit=dev",
+        "--json"
+      ],
+      "level": "tooling"
+    }
+  ],
+  "pending": [
+    "Lint: no existing script; NOT TESTED",
+    "Live authentication and tenant isolation: NOT TESTED",
+    "Release approval: BLOCKED until owner authorises"
+  ]
+}
