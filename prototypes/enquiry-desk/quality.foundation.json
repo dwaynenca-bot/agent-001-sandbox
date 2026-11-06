@@ -1,0 +1,10 @@
+{
+  "name": "Enquiry Desk backend foundation",
+  "cwd": ".",
+  "checks": [{"id": "foundation", "command": ["npm", "run", "test"], "level": "local-source"}],
+  "pending": [
+    "Responsive frontend and browser acceptance after the independently verified first checkpoint",
+    "No lint or build script: Node and static browser files execute directly",
+    "Production security certification, deployment and physical-device acceptance are not established"
+  ]
+}
