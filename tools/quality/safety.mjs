@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {readFileSync} from 'node:fs';
+import {readFileSync, lstatSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 export function redact(value, env=process.env) {
  let s=typeof value==='string'?value:JSON.stringify(value);
@@ -36,9 +36,26 @@ export function plan(path) {
  const cwd=resolve(dirname(path),config.cwd||'.');
  const packageText=readFileSync(resolve(cwd,'package.json'),'utf8');
  const pkg=JSON.parse(packageText);
- const data={config,cwd,packageText};
+ // Reject ambiguity instead of silently accepting npm's shrinkwrap precedence.
+ const candidates=['package-lock.json','npm-shrinkwrap.json'].flatMap(name=>{
+  const file=resolve(cwd,name);
+  try {
+   const stat=lstatSync(file,{bigint:true});
+   if(!stat.isFile()) throw Error('Execution blocked: npm lockfile must be a regular file');
+   const bytes=readFileSync(file);
+   const parsed=JSON.parse(bytes.toString('utf8'));
+   if(!parsed || typeof parsed!=='object' || !Number.isInteger(parsed.lockfileVersion)) throw Error('Execution blocked: invalid npm lockfile');
+   return [{name,contents:bytes.toString('base64'),device:String(stat.dev),inode:String(stat.ino)}];
+  } catch(error) {
+   if(error.code==='ENOENT') return [];
+   throw error;
+  }
+ });
+ if(candidates.length!==1) throw Error('Execution blocked: exactly one npm lockfile is required (package-lock.json or npm-shrinkwrap.json)');
+ const lockfile=candidates[0];
+ const data={config,cwd,packageText,lockfile};
  const digest=createHash('sha256').update(JSON.stringify(data)).digest('hex');
- return {config,cwd,scripts:pkg.scripts||{},digest};
+ return {config,cwd,scripts:pkg.scripts||{},digest,lockfile:{name:lockfile.name,sha256:createHash('sha256').update(Buffer.from(lockfile.contents,'base64')).digest('hex')}};
 }
 
 export function sanitize(value) {

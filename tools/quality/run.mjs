@@ -54,7 +54,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
  try {
   if(process.argv[2]==='--plan') {
    const p=plan(resolve(process.argv[3]));
-   console.log(JSON.stringify(sanitize({cwd:p.cwd,config:p.config,allPackageScripts:p.scripts,approvalDigest:p.digest}),null,2));
+   console.log(JSON.stringify(sanitize({cwd:p.cwd,config:p.config,allPackageScripts:p.scripts,lockfile:p.lockfile,approvalDigest:p.digest}),null,2));
   } else {
    if(!process.argv[2]||!process.argv[3]||process.argv[4]!=='--approve-plan'||!process.argv[5]) throw Error('Usage: run.mjs --plan CONFIG; then run.mjs CONFIG OUTPUT --approve-plan DIGEST');
    const r=run(resolve(process.argv[2]),process.argv[3],process.argv[5]);process.exitCode=r.result==='PASS'?0:1;
