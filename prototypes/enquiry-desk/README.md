@@ -1,6 +1,6 @@
-# Enquiry Desk — backend foundation
+# Enquiry Desk — local training MVP
 
-Fictional full-stack training application. The authenticated backend, SQLite persistence and recovery tools are implemented. The responsive frontend and browser acceptance are **pending the independently verified first GitHub checkpoint**. No production security certification, deployment or real-customer use is claimed.
+Fictional full-stack training application with a plain browser interface, authenticated API, SQLite persistence and recovery tools. The backend foundation is durably preserved at `24d6cf80f6fc787a48463e528f361084fe195a22` on `feature/enquiry-desk-m016`. The integrated frontend changes remain local until separately approved for handover. No production security certification, deployment or real-customer use is claimed.
 
 ## Runtime and local setup
 
@@ -21,7 +21,17 @@ Initialization is deliberate and transactional: if credential-file persistence f
 
 The server defaults to **http://127.0.0.1:4180** and always binds `127.0.0.1`. `PORT` optionally changes the port; `ENQUIRY_DB` selects an explicit database file. Do not expose it with a tunnel or reverse proxy. Use the exact printed origin, not a different host alias. Startup migrates an empty database but **never creates accounts or sample enquiries**. Stop with Ctrl-C; restart with the same database path to retain accounts, enquiries and unexpired sessions.
 
-A bare foundation status page is served at `/`. It is not a login or management interface. Never serve this project directory using a generic static file server: application data is private and only the explicit public route should be served.
+Open the printed origin and sign in with an initialized fictional account. The page identifies the authenticated business and account; there is no client-controlled business selector.
+
+- Choose New enquiry, enter a contact name and subject, optionally email/message, then Save enquiry. Status defaults to New; it may be changed to In progress or Closed.
+- Select a record from the list to retrieve and edit it through the authenticated API. Each business sees only its own records. The list is paginated at 25 records and can be filtered by status.
+- Saves are explicit. Unapplied changes prompt before switching records, starting a new record or signing out; navigation warnings depend on browser behavior. Discard edits restores the last loaded/saved values.
+- A failed save retains the form and reports failure. On an uncertain network failure, check/refresh the list before retrying a new record: the server might have committed before the response was lost. Create requests do not yet have idempotency keys.
+- Sign out invalidates the session and scrubs the business identity, form and record list. A failed logout reports that the session may remain active; it does not falsely claim success. A server-rejected/expired session clears the workspace on the next request. There is no automatic idle-screen lock.
+- Reload retrieves the session and list from the server. Select a record again to reopen it. No enquiry, password, session or CSRF data is placed in browser localStorage/sessionStorage. Unsaved edits are not persisted or backed up.
+- Use separate browser profiles/private contexts to review both businesses simultaneously; ordinary tabs in one profile share the session cookie. Browser cookies are HttpOnly and SameSite=Strict. Old in-flight responses are ignored after an authenticated session changes.
+
+Never serve this project directory using a generic static file server: data and source are private. The server exposes only `/`, `/assets/app.js`, `/assets/style.css` and the authenticated API. Generated data is never a public static asset.
 
 ## API contract
 
@@ -74,26 +84,32 @@ ENQUIRY_DB=var/recovered.sqlite npm start
 
 The backup uses `node:sqlite.backup`, not a plain live copy of the main file. Restore checks database identity/integrity and creates a new database. It then invalidates **all restored sessions**, preserving businesses, user password hashes and enquiries; users must log in again with their existing passwords. The original database and backup remain untouched. If restore reports failure, do not use its destination: retain the original, inspect the failure and retry to another new path. There is no automatic failover, remote backup, point-in-time recovery or production disaster-recovery guarantee.
 
-## Foundation tests and quality toolkit
+## Tests and quality toolkit
 
 ```sh
 npm test
+# Reuse a locally installed Playwright module; never install it implicitly:
+ENQUIRY_PLAYWRIGHT_PATH=/absolute/path/to/playwright npm run test:browser
 ```
 
-Tests use genuine scrypt, temporary SQLite files, real loopback HTTP, and separate Node server processes. They cover independent logins, CRUD, both-direction tenant attacks, unknown/cross-business indistinguishable 404s, forged ownership fields, session hash storage/rotation/expiry/logout, CSRF/origin/Host, invalid JSON/UTF-8/body sizes, SQL-like text, throttling, constraints/rollback, migration refusal, online backup, restore session invalidation, process restart and initialization refusal. No test uses real customer information. `ENQUIRY_TEST_ROOT` can select a private generated-data directory outside source; tests clean their own temporary directories. Tests run sequentially to bound memory used by real scrypt.
+Backend tests use genuine scrypt, temporary SQLite files, real loopback HTTP, and separate Node server processes. They cover independent logins, CRUD, both-direction tenant attacks, unknown/cross-business indistinguishable 404s, forged ownership fields, session hash storage/rotation/expiry/logout, CSRF/origin/Host, invalid JSON/UTF-8/body sizes, SQL-like text, throttling, constraints/rollback, migration refusal, online backup, restore session invalidation, process restart and initialization refusal. No test uses real customer information. `ENQUIRY_TEST_ROOT` can select a private generated-data directory outside source; tests clean their own temporary directories. Tests run sequentially to bound memory used by real scrypt.
+
+Browser tests use the existing Playwright module and installed Chromium (default `/usr/bin/chromium`; override with `ENQUIRY_CHROMIUM_PATH`). No browser runner or application package is downloaded. `ENQUIRY_BROWSER_EVIDENCE` optionally names a private evidence directory outside source for screenshots. The approved environment reuses Playwright 1.64.1 at `/workspace/watchdog-m015/source/node_modules/playwright`; another environment must provide an approved compatible existing runner or obtain separate installation approval.
+
+The browser suite covers full workflows at 1440px and 375px, independent business contexts and both-direction cross-tenant GET/PATCH attempts, CSRF/ownership rejection, real HttpOnly/Strict cookies, pagination, same-profile business switching, logout/session-expiry data scrubbing, delayed old-session response rejection, save/logout failures, actual restart/reload, safely rendered stored text, unsaved prompts, keyboard navigation, validation and failed-login recovery.
 
 Use the existing repository quality toolkit, unchanged:
 
 ```sh
-node tools/quality/run.mjs --plan prototypes/enquiry-desk/quality.foundation.json
+node tools/quality/run.mjs --plan prototypes/enquiry-desk/quality.json
 # Review cwd, scripts and the lockfile-bound digest, then use a NEW output directory:
-node tools/quality/run.mjs prototypes/enquiry-desk/quality.foundation.json /private/evidence/new-run --approve-plan REVIEWED_DIGEST
+node tools/quality/run.mjs prototypes/enquiry-desk/quality.json /private/evidence/new-run --approve-plan REVIEWED_DIGEST
 ```
 
 Paths above assume the original repository root. In the isolated workspace, the verified toolkit lives under `baseline/tools/quality/`; use that absolute path with this project's config. Git metadata is unavailable in the isolated project; the evidence manifest records the pinned source and file hashes independently.
 
-No npm install, bundler build or lint script is needed/provided. No registry-audit pass is claimed for this zero-dependency foundation. API/integration tests are backend evidence, not browser or production certification. Browser acceptance at desktop/375px, UI safe rendering/accessibility, browser cookie behavior, physical devices, Firefox/Safari and independent security review remain pending.
+The current plan is `quality.json`; `quality.foundation.json` is retained as the original foundation plan. Set the browser runner/executable/evidence environment variables when running the integrated plan. No npm install, bundler build or lint script is needed/provided. No registry-audit pass is claimed for this zero-dependency application. Tested browser behavior is Chromium only; physical devices, Firefox/Safari, full assistive-technology review, load testing and independent security review remain untested. Passing API/browser checks is not production security certification.
 
 ## Source and preservation boundaries
 
-Base: `dwaynenca-bot/agent-001-sandbox`, `feature/agent-001-mission-002`, commit `39f38fd86750588dfcaa9be059ab1f7b8f45fcb2`. New source belongs only under `prototypes/enquiry-desk/`. Existing applications, dependencies, permanent skills and quality toolkit are preserved. This foundation checkpoint requires owner approval before any GitHub writes. Generated accounts, password files, SQLite databases/sidecars, backups, test output and sessions must never be added to the source manifest. The frontend starts only after the early checkpoint is independently verified.
+Base: `dwaynenca-bot/agent-001-sandbox`, `feature/agent-001-mission-002`, commit `39f38fd86750588dfcaa9be059ab1f7b8f45fcb2`. New source belongs only under `prototypes/enquiry-desk/`. Existing applications, dependencies, permanent skills and quality toolkit are preserved. Any checkpoint beyond the verified foundation requires separate owner approval before GitHub writes. Generated accounts, password files, SQLite databases/sidecars, backups, test output and sessions must never be added to the source manifest. The foundation was independently read back from GitHub before frontend work began. A working preview or local SQLite database is not a durable source handover.

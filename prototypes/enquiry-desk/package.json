@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=24.19.0 <25"},
+  "engines": {
+    "node": ">=24.19.0 <25"
+  },
   "scripts": {
     "start": "node src/server.js",
     "init": "node scripts/init.mjs",
     "backup": "node scripts/backup.mjs",
     "restore": "node scripts/restore.mjs",
-    "test": "node --test --test-concurrency=1 tests/*.test.js"
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "test:browser": "node --test --test-concurrency=1 tests/browser.mjs"
   }
 }

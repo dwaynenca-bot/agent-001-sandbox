@@ -53,9 +53,11 @@ export async function startServer({databasePath, port = 0, clock = Date.now, onE
       const url = new URL(req.url, origin);
       if (url.origin !== origin) throw new HttpError(403, 'Request origin not allowed');
       const path = url.pathname;
-      if (req.method === 'GET' && path === '/' && !url.search) {
-        const page = await readFile(new URL('../public/index.html', import.meta.url));
-        res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8'}); res.end(page); return;
+      const assets = {'/': ['index.html', 'text/html'], '/assets/app.js': ['app.js', 'text/javascript'], '/assets/style.css': ['style.css', 'text/css']};
+      if (req.method === 'GET' && Object.hasOwn(assets, path) && !url.search) {
+        const [filename, type] = assets[path];
+        const content = await readFile(new URL('../public/' + filename, import.meta.url));
+        res.writeHead(200, {'Content-Type': type + '; charset=utf-8'}); res.end(content); return;
       }
       if (!path.startsWith('/api/')) throw new HttpError(404, 'Route not found');
       if (req.method === 'POST' && path === '/api/login' && !url.search) {

@@ -1,0 +1,13 @@
+{
+  "name": "Enquiry Desk integrated local MVP",
+  "cwd": ".",
+  "checks": [
+    {"id": "foundation", "command": ["npm", "run", "test"], "level": "local-source"},
+    {"id": "browser", "command": ["npm", "run", "test:browser"], "level": "local-source"}
+  ],
+  "pending": [
+    "Independent security certification, deployment, physical devices, Firefox and Safari are not established",
+    "No bundler build, lint script or registry-audit pass is claimed for this zero-dependency application",
+    "Remaining local changes require separate GitHub handover approval"
+  ]
+}
