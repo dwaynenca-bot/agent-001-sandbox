@@ -1,0 +1,14 @@
+{
+  "name": "Floral Quote Lab local MVP",
+  "cwd": ".",
+  "checks": [
+    {"id": "unit", "command": ["npm", "run", "test"], "level": "local-source"},
+    {"id": "browser", "command": ["npm", "run", "test:browser"], "level": "local-source"}
+  ],
+  "pending": [
+    "Physical printer, physical mobile device, Firefox and Safari acceptance",
+    "Florist review of wording, prices and workflow; tax treatment not configured",
+    "No lint script or bundler; no deployment or production readiness claimed",
+    "Remaining local MVP files require separate GitHub handover approval"
+  ]
+}

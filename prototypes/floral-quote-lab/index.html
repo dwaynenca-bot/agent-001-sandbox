@@ -1,28 +1,53 @@
 <!doctype html>
 <html lang="en-GB">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Floral Quote Lab — Foundation</title>
-    <link rel="stylesheet" href="./src/style.css">
-    <script type="module" src="./src/app.js"></script>
-  </head>
-  <body>
-    <main>
-      <header><p class="eyebrow">FLORAL QUOTE LAB / FOUNDATION</p><h1>A considered quote,<br>from the first stem.</h1><p>Test the quotation engine with a fictional arrangement.</p></header>
-      <section aria-labelledby="quote-heading">
-        <div class="heading"><h2 id="quote-heading">Quotation workspace</h2><span class="badge">DRAFT</span></div>
-        <p>This foundation has no saved drafts. Values stay in this page until you reload.</p>
-        <form id="calculator">
-          <label>Arrangement<input value="Fictional garden bouquet" disabled></label>
-          <label>Quantity<input id="quantity" name="quantity" inputmode="numeric" value="2" required></label>
-          <label>Unit price (£)<input id="price" name="price" inputmode="decimal" value="45.50" required></label>
-          <button type="submit">Calculate draft</button>
-        </form>
-        <p id="error" role="alert"></p>
-        <p class="total">Draft total <output id="total" aria-live="polite"></output></p>
-      </section>
-      <footer>GBP • Whole-unit quantities • Tax treatment not configured<br>Foundation checkpoint — enquiry capture, saving and print layout are pending.</footer>
-    </main>
-  </body>
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light">
+  <title>Floral Quote Lab</title><link rel="stylesheet" href="./src/style.css"><script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to quotation</a>
+  <header class="site-header no-print"><a class="brand" href="./">Floral <i>Quote Lab</i></a><span class="badge">LOCAL DRAFT WORKSPACE</span></header>
+  <main id="workspace">
+    <div class="intro no-print"><p class="eyebrow">THOUGHTFULLY ARRANGED</p><h1>From first enquiry<br>to a considered quote.</h1><p>Gather the details, shape the flowers, and prepare a clear draft.</p></div>
+    <section class="draft-bar no-print" aria-label="Draft controls">
+      <div class="draft-actions"><button id="new-draft" class="secondary">New draft</button><button id="example-wedding" class="text-button">Wedding example</button><button id="example-celebration" class="text-button">Celebration example</button></div>
+      <div class="reopen"><label for="saved-drafts">Saved in this browser</label><div><select id="saved-drafts"><option value="">Choose a draft</option></select><button id="open-draft" class="secondary">Open</button></div></div>
+      <p class="privacy">Drafts stay in this browser profile. They are not sent anywhere or backed up. Use fictional details while evaluating this prototype.</p>
+    </section>
+    <p id="error" role="alert" class="message error no-print"></p>
+    <div class="workspace-grid no-print">
+      <div class="editor">
+        <section class="card" aria-labelledby="enquiry-heading"><p class="eyebrow">01 / THE OCCASION</p><h2 id="enquiry-heading">Enquiry details</h2><p class="hint">All fields are optional for a draft.</p>
+          <form id="enquiry-form" class="form-grid">
+            <label>Name<input name="name" maxlength="200" autocomplete="off"></label><label>Event type<input name="eventType" maxlength="200" placeholder="e.g. Wedding"></label>
+            <label>Email<input name="email" type="email" maxlength="200" autocomplete="off"></label><label>Phone<input name="phone" type="tel" maxlength="200" autocomplete="off"></label>
+            <label>Event date<input name="eventDate" type="date"></label><label>Venue<input name="venue" maxlength="200"></label>
+            <label class="full">Notes<textarea name="notes" rows="3" maxlength="4000" placeholder="Palette, style, access or timing"></textarea></label>
+          </form>
+        </section>
+        <section class="card" aria-labelledby="items-heading"><p class="eyebrow">02 / THE FLOWERS</p><h2 id="items-heading">Line items</h2><div id="items"></div>
+          <form id="item-form" class="form-grid"><h3 id="item-form-heading" class="full">Add an arrangement</h3>
+            <label class="full">Description<input name="description" maxlength="200" required></label><label>Quantity<input name="quantity" value="1" inputmode="numeric" required></label><label>Unit price (£)<input name="price" inputmode="decimal" placeholder="0.00" required></label>
+            <div class="full action-row"><button type="submit" id="apply-item">Add line item</button><button type="button" id="cancel-item" class="secondary">Clear form</button></div>
+          </form>
+        </section>
+        <section class="card" aria-labelledby="charges-heading"><p class="eyebrow">03 / THE FINISHING TOUCHES</p><h2 id="charges-heading">Delivery & setup</h2><p class="hint">Optional charges. Leave blank to omit a charge.</p>
+          <form id="charges-form" class="form-grid"><label>Delivery (£)<input name="delivery" inputmode="decimal" placeholder="Not added"></label><label>Setup (£)<input name="setup" inputmode="decimal" placeholder="Not added"></label><button class="full secondary" type="submit">Apply charges</button></form>
+        </section>
+      </div>
+      <aside class="card summary" aria-labelledby="summary-heading"><p class="eyebrow">YOUR QUOTATION</p><div class="heading"><h2 id="summary-heading">Draft summary</h2><span class="badge">DRAFT</span></div>
+        <dl><div><dt>Flowers subtotal</dt><dd id="subtotal">£0.00</dd></div><div><dt>Delivery</dt><dd id="delivery-total">Not added</dd></div><div><dt>Setup</dt><dd id="setup-total">Not added</dd></div><div class="grand-total"><dt>Draft total</dt><dd id="total" aria-live="polite">£0.00</dd></div></dl>
+        <p class="hint">Tax treatment not configured.</p><p id="pending-status" class="hint"></p><button id="save-draft">Save draft in this browser</button><button id="print-draft" class="secondary">Print / Save PDF</button>
+        <p id="save-status" role="status" class="hint">New draft — not saved</p><p class="hint">Print or choose “Save as PDF” in your browser. The document is marked DRAFT.</p>
+      </aside>
+    </div>
+    <article id="print-quote" class="print-quote" aria-label="Draft quotation preview">
+      <div class="print-heading"><div><p class="eyebrow">FLORAL QUOTE LAB</p><h2>Floral quotation</h2></div><span class="print-draft">DRAFT</span></div><p class="document-note">Draft for discussion • Tax treatment not configured</p>
+      <div id="print-details" class="print-details"></div>
+      <table><caption>Proposed arrangements</caption><thead><tr><th scope="col">Description</th><th scope="col">Qty</th><th scope="col">Unit price</th><th scope="col">Amount</th></tr></thead><tbody id="print-items"></tbody></table>
+      <dl id="print-totals" class="print-totals"></dl><div id="print-notes"></div><footer>Prepared as a draft quotation. Prices and arrangements remain subject to discussion.<br>This document does not confirm a booking.</footer>
+    </article>
+    <footer class="site-footer no-print">Floral Quote Lab · Browser-only prototype · Tax treatment not configured</footer>
+  </main>
+</body>
 </html>

@@ -13,7 +13,7 @@ test('GBP strings convert exactly to pence without floating-point multiplication
   for (const [input, expected] of [['0', 0], ['0.01', 1], ['1.1', 110], ['19.99', 1999], ['90071992547409.91', Number.MAX_SAFE_INTEGER]]) assert.equal(parseMoney(input), expected);
 });
 test('money parser rejects ambiguous, rounded, negative and non-string inputs', () => {
-  for (const value of ['', ' ', ' 1.00', '1.00 ', '-1', '+1', '.50', '1.', '01', '1.001', '1e3', '1,000', '£10', 'Infinity', 'NaN', 1, null, undefined, '90071992547409.92']) assert.throws(() => parseMoney(value), String(value));
+  for (const value of ['', ' ', ' 1.00', '1.00 ', '-1', '+1', '.50', '1.', '01', '1.001', '1e3', '1,000', '£10', 'Infinity', 'NaN', 1, null, undefined, '90071992547409.92', '9'.repeat(10000)]) assert.throws(() => parseMoney(value), String(value).slice(0, 40));
 });
 test('formatting preserves exact pence including the safe integer boundary', () => {
   assert.equal(formatMoney(0), '£0.00');

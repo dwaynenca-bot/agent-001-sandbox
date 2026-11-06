@@ -7,7 +7,7 @@ export function pence(value) {
 }
 
 export function parseMoney(value) {
-  if (typeof value !== 'string' || !/^(0|[1-9]\d*)(\.\d{1,2})?$/.test(value)) {
+  if (typeof value !== 'string' || value.length > 17 || !/^(0|[1-9]\d*)(\.\d{1,2})?$/.test(value)) {
     throw new TypeError('Enter pounds with up to two decimal places');
   }
   const [pounds, fraction = ''] = value.split('.');

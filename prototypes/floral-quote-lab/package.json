@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Browser-only quotation foundation; no runtime dependencies",
   "scripts": {
-    "test": "node --test tests/domain.test.js",
+    "test": "node --test tests/domain.test.js tests/drafts.test.js",
     "start": "node tools/serve.mjs",
     "test:browser": "node --test tests/browser.test.js"
   }
