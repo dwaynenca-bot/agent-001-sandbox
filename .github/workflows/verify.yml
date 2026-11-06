@@ -1,35 +1,246 @@
-name: Stock Watchdog verification
-on:
+name: Agent 001 verification
+
+'on':
   push:
-    branches: [feature/stock-watchdog-v01]
+    branches: [main, 'feature/**', 'maintenance/**', 'ci/**']
   pull_request:
-    branches: [main]
+    branches: [main, feature/agent-001-mission-002, feature/enquiry-desk-m016]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
+    name: verify
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      CI_EVIDENCE: ${{ runner.temp }}/agent-001-delivery
+      ENQUIRY_TEST_ROOT: ${{ runner.temp }}/agent-001-test-runtime
+      ENQUIRY_BROWSER_EVIDENCE: ${{ runner.temp }}/agent-001-delivery/enquiry-browser
+      ENQUIRY_PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright
+      npm_config_fetch_retries: '1'
+      npm_config_fetch_timeout: '30000'
+      npm_config_fund: 'false'
+      npm_config_update_notifier: 'false'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out tested revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: '22'
+          persist-credentials: false
+
+      - name: Select Node 24.19.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24.19.0'
           cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+          cache-dependency-path: package-lock.json
+
+      - name: Verify revision, required applications and fixed check plans
+        id: preflight
+        run: |
+          umask 077
+          mkdir -p "$CI_EVIDENCE" "$ENQUIRY_TEST_ROOT"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import assert from 'node:assert/strict';
+          import {execFileSync} from 'node:child_process';
+          assert.equal(process.versions.node, '24.19.0');
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const revision = {
+            event: process.env.GITHUB_EVENT_NAME, action: event.action ?? null,
+            head: event.pull_request?.head.sha ?? event.after ?? process.env.GITHUB_SHA,
+            base: event.pull_request?.base.sha ?? null, baseRef: event.pull_request?.base.ref ?? null,
+            checkout: execFileSync('git', ['rev-parse', 'HEAD'], {encoding: 'utf8'}).trim(),
+            expectedCheckout: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT, pullRequest: event.pull_request?.number ?? null
+          };
+          fs.writeFileSync(path.join(process.env.CI_EVIDENCE, 'revision.json'), JSON.stringify(revision, null, 2));
+          assert.equal(revision.checkout, revision.expectedCheckout, 'Checkout must match the event revision');
+          assert.match(revision.head, /^[a-f0-9]{40}$/);
+          if (revision.event === 'pull_request') {
+            assert.match(revision.base, /^[a-f0-9]{40}$/);
+            assert.equal(event.pull_request.head.repo.full_name, process.env.GITHUB_REPOSITORY, 'This supervised pilot accepts same-repository PRs only');
+          }
+          const required = [
+            'package.json', 'package-lock.json', 'src/inventory.js', 'src/inventory.test.js',
+            'src/leadingZeros.test.js', 'e2e/app.spec.js', 'playwright.config.js', 'vite.config.js',
+            'AGENTS.md', '.agents/skills/build-test-fix/SKILL.md', '.agents/skills/base44-development/SKILL.md',
+            'tools/quality/run.mjs', 'tools/quality/safety.mjs', 'tools/quality/configs/watchdog.json',
+            ...['package.json', 'package-lock.json', 'quality.json', 'public/index.html', 'public/app.js',
+              'public/style.css', 'src/server.js', 'src/database.js', 'src/auth.js', 'src/enquiries.js',
+              'src/validation.js', 'tests/unit.test.js', 'tests/api.test.js', 'tests/database.test.js',
+              'tests/process.test.js', 'tests/browser.mjs', 'tests/helpers.js'].map(p => 'prototypes/enquiry-desk/' + p)
+          ];
+          for (const file of required) {
+            const stat = fs.lstatSync(file);
+            assert.ok(stat.isFile() && !stat.isSymbolicLink() && stat.size > 0, 'Missing/unsafe required file: ' + file);
+          }
+          for (const dir of ['src', 'e2e', 'prototypes/enquiry-desk/src', 'prototypes/enquiry-desk/tests']) {
+            for (const file of fs.readdirSync(dir).filter(p => /\.(?:js|mjs)$/.test(p))) {
+              assert.ok(!/\b(?:test|it|describe)\s*\.\s*only\s*\(/.test(fs.readFileSync(path.join(dir, file), 'utf8')), 'Focused tests are not permitted: ' + file);
+            }
+          }
+          const expected = [
+            ['tools/quality/configs/watchdog.json', '.', [
+              ['unit', ['npm','run','test']], ['build', ['npm','run','build']],
+              ['browser', ['npm','run','test:e2e']], ['dependency-tree', ['npm','ls','--all']],
+              ['audit-full', ['npm','audit','--json']], ['audit-production', ['npm','audit','--omit=dev','--json']]
+            ]],
+            ['prototypes/enquiry-desk/quality.json', 'prototypes/enquiry-desk', [
+              ['foundation', ['npm','run','test']], ['browser', ['npm','run','test:browser']]
+            ]]
+          ];
+          for (const [file, cwd, checks] of expected) {
+            const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+            assert.equal(path.resolve(path.dirname(file), config.cwd || '.'), path.resolve(cwd), 'Unexpected check cwd');
+            assert.deepEqual(config.checks.map(c => [c.id, c.command]), checks, 'Required checks must not be omitted/substituted');
+          }
+          fs.writeFileSync(path.join(process.env.CI_EVIDENCE, 'preflight.json'), JSON.stringify({requiredFiles: required.length, result: 'PASS'}));
+          NODE
+
+      - name: Install existing locked dependencies
+        id: dependencies
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        timeout-minutes: 8
+        run: npm ci --no-fund
+
+      - name: Install matching Chromium and select its executable
+        id: chromium
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        timeout-minutes: 8
+        run: |
+          ./node_modules/.bin/playwright install --with-deps chromium
+          browser_path=$(node -e "process.stdout.write(require('playwright').chromium.executablePath())")
+          test -x "$browser_path"
+          printf 'PLAYWRIGHT_CHROMIUM_EXECUTABLE=%s\nENQUIRY_CHROMIUM_PATH=%s\n' "$browser_path" "$browser_path" >> "$GITHUB_ENV"
+
+      # The owner-approved workflow authorizes these fixed commands. Print/review the
+      # complete plan, bind a fresh runner-local digest, and let the toolkit recheck it.
+      - name: Watchdog quality checks
+        id: watchdog
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        timeout-minutes: 8
+        run: |
+          node tools/quality/run.mjs --plan tools/quality/configs/watchdog.json > "$CI_EVIDENCE/watchdog-plan.json"
+          cat "$CI_EVIDENCE/watchdog-plan.json"
+          digest=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).approvalDigest)" "$CI_EVIDENCE/watchdog-plan.json")
+          node tools/quality/run.mjs tools/quality/configs/watchdog.json "$CI_EVIDENCE/watchdog" --approve-plan "$digest"
+
+      - name: Enquiry Desk quality checks
+        id: enquiry
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        timeout-minutes: 8
+        run: |
+          node tools/quality/run.mjs --plan prototypes/enquiry-desk/quality.json > "$CI_EVIDENCE/enquiry-plan.json"
+          cat "$CI_EVIDENCE/enquiry-plan.json"
+          digest=$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).approvalDigest)" "$CI_EVIDENCE/enquiry-plan.json")
+          node tools/quality/run.mjs prototypes/enquiry-desk/quality.json "$CI_EVIDENCE/enquiry" --approve-plan "$digest"
+
+      - name: Prepare explicitly selected redacted diagnostics
+        id: diagnostics
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {redact} from './tools/quality/safety.mjs';
+          const root = process.env.CI_EVIDENCE;
+          fs.mkdirSync(path.join(root, 'safe-logs'), {recursive: true, mode: 0o700});
+          for (const [app, ids] of [['watchdog', ['unit','build','browser','dependency-tree','audit-full','audit-production']], ['enquiry', ['foundation','browser']]]) {
+            for (const id of ids) {
+              const text = ['stdout','stderr'].map(stream => {
+                const file = path.join(root, app, `${id}.${stream}.log`);
+                return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '[log unavailable]';
+              }).join('\n');
+              // Generated passwords are 32-character base64url; sessions are 64 hex.
+              // Broad masking is deliberate. No raw runtime directories or traces are archived.
+              const safe = redact(text).replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[REDACTED_LONG_VALUE]');
+              fs.writeFileSync(path.join(root, 'safe-logs', `${app}-${id}.log`), safe);
+            }
+          }
+          NODE
+
+      - name: Reject incomplete, skipped or failing verification
+        if: ${{ !cancelled() }}
         env:
-          PLAYWRIGHT_CHROMIUM_EXECUTABLE: ''
-      - name: Save visual previews
-        if: always()
-        uses: actions/upload-artifact@v4
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          DEPENDENCIES_OUTCOME: ${{ steps.dependencies.outcome }}
+          CHROMIUM_OUTCOME: ${{ steps.chromium.outcome }}
+          WATCHDOG_OUTCOME: ${{ steps.watchdog.outcome }}
+          ENQUIRY_OUTCOME: ${{ steps.enquiry.outcome }}
+          DIAGNOSTICS_OUTCOME: ${{ steps.diagnostics.outcome }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import assert from 'node:assert/strict';
+          const root = process.env.CI_EVIDENCE, summary = {result: 'FAIL', counts: {}};
+          const read = file => fs.readFileSync(path.join(root, file), 'utf8').replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+          try {
+            for (const key of ['PREFLIGHT','DEPENDENCIES','CHROMIUM','WATCHDOG','ENQUIRY','DIAGNOSTICS']) assert.equal(process.env[key + '_OUTCOME'], 'success', key + ' must execute successfully');
+            for (const [app, ids] of [['watchdog',['unit','build','browser','dependency-tree','audit-full','audit-production']],['enquiry',['foundation','browser']]]) {
+              const report = JSON.parse(read(app + '/report.json'));
+              assert.equal(report.result, 'PASS', app + ' overall result');
+              assert.deepEqual(report.checks.map(c => c.id), ids, app + ' complete check inventory');
+              for (const c of report.checks) { assert.equal(c.status, 'PASS', app + '/' + c.id); assert.equal(c.exitCode, 0); }
+            }
+            const unit = /Tests\s+(\d+) passed\s+\((\d+)\)/.exec(read('watchdog/unit.stdout.log'));
+            assert.ok(unit && Number(unit[1]) >= 36 && unit[1] === unit[2], 'Watchdog unit suite must pass without skips');
+            summary.counts.watchdogUnit = Number(unit[1]);
+            const browser = read('watchdog/browser.stdout.log'), launched = /Running (\d+) tests/.exec(browser), passed = /(?:^|\n)\s*(\d+) passed/.exec(browser);
+            assert.ok(launched && passed && Number(passed[1]) >= 6 && launched[1] === passed[1] && !/\b\d+ (?:failed|skipped|interrupted|did not run|timed out)\b/.test(browser), 'Watchdog browser suite must pass without skips');
+            summary.counts.watchdogBrowser = Number(passed[1]);
+            for (const [id, minimum] of [['foundation',35],['browser',12]]) {
+              const counts = Object.fromEntries([...read(`enquiry/${id}.stdout.log`).matchAll(/^(?:ℹ\s*|#\s*)?(tests|pass|fail|cancelled|skipped)\s+(\d+)\s*$/gm)].map(m => [m[1],Number(m[2])]));
+              assert.ok(counts.tests >= minimum && counts.pass === counts.tests && counts.fail === 0 && counts.cancelled === 0 && counts.skipped === 0, 'Enquiry ' + id + ' must pass without skips');
+              summary.counts['enquiry' + (id === 'foundation' ? 'Backend' : 'Browser')] = counts.pass;
+            }
+            for (const file of [path.join(root,'revision.json'),path.join(root,'preflight.json'),path.join(process.env.GITHUB_WORKSPACE,'test-results/desktop.png'),path.join(process.env.GITHUB_WORKSPACE,'test-results/mobile.png'),path.join(root,'enquiry-browser/workspace-1440.png'),path.join(root,'enquiry-browser/workspace-375.png')]) assert.ok(fs.statSync(file).size > 0, 'Required evidence missing: ' + path.basename(file));
+            summary.result = 'PASS';
+          } catch (error) { summary.reason = error.message; process.exitCode = 1; }
+          fs.mkdirSync(root, {recursive: true, mode: 0o700});
+          fs.writeFileSync(path.join(root, 'verification.json'), JSON.stringify(summary, null, 2));
+          console.log(JSON.stringify(summary, null, 2));
+          if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Automated verification: **${summary.result}**. This is not merge, deployment or production-security approval.\n`);
+          NODE
+
+      - name: Upload allowlisted verification evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: stock-watchdog-previews
+          name: agent-001-verify-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
           path: |
+            ${{ env.CI_EVIDENCE }}/revision.json
+            ${{ env.CI_EVIDENCE }}/preflight.json
+            ${{ env.CI_EVIDENCE }}/verification.json
+            ${{ env.CI_EVIDENCE }}/watchdog-plan.json
+            ${{ env.CI_EVIDENCE }}/enquiry-plan.json
+            ${{ env.CI_EVIDENCE }}/watchdog/report.json
+            ${{ env.CI_EVIDENCE }}/watchdog/report.md
+            ${{ env.CI_EVIDENCE }}/enquiry/report.json
+            ${{ env.CI_EVIDENCE }}/enquiry/report.md
+            ${{ env.CI_EVIDENCE }}/safe-logs/watchdog-unit.log
+            ${{ env.CI_EVIDENCE }}/safe-logs/watchdog-build.log
+            ${{ env.CI_EVIDENCE }}/safe-logs/watchdog-browser.log
+            ${{ env.CI_EVIDENCE }}/safe-logs/watchdog-dependency-tree.log
+            ${{ env.CI_EVIDENCE }}/safe-logs/watchdog-audit-full.log
+            ${{ env.CI_EVIDENCE }}/safe-logs/watchdog-audit-production.log
+            ${{ env.CI_EVIDENCE }}/safe-logs/enquiry-foundation.log
+            ${{ env.CI_EVIDENCE }}/safe-logs/enquiry-browser.log
             test-results/desktop.png
             test-results/mobile.png
-          if-no-files-found: warn
-          retention-days: 7
+            ${{ env.CI_EVIDENCE }}/enquiry-browser/workspace-1440.png
+            ${{ env.CI_EVIDENCE }}/enquiry-browser/workspace-375.png
