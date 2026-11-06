@@ -24,9 +24,6 @@ jobs:
       run:
         shell: bash
     env:
-      CI_EVIDENCE: ${{ runner.temp }}/agent-001-delivery
-      ENQUIRY_TEST_ROOT: ${{ runner.temp }}/agent-001-test-runtime
-      ENQUIRY_BROWSER_EVIDENCE: ${{ runner.temp }}/agent-001-delivery/enquiry-browser
       ENQUIRY_PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright
       npm_config_fetch_retries: '1'
       npm_config_fetch_timeout: '30000'
@@ -44,6 +41,10 @@ jobs:
           node-version: '24.19.0'
           cache: npm
           cache-dependency-path: package-lock.json
+
+      - name: Initialize runner temporary paths
+        run: |
+          printf 'CI_EVIDENCE=%s/agent-001-delivery\nENQUIRY_TEST_ROOT=%s/agent-001-test-runtime\nENQUIRY_BROWSER_EVIDENCE=%s/agent-001-delivery/enquiry-browser\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" >> "$GITHUB_ENV"
 
       - name: Verify revision, required applications and fixed check plans
         id: preflight
