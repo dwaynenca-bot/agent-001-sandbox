@@ -1,0 +1,13 @@
+{
+  "name": "Floral Quote Lab foundation",
+  "cwd": ".",
+  "checks": [
+    {"id": "domain", "command": ["npm", "run", "test"], "level": "local-source"},
+    {"id": "browser", "command": ["npm", "run", "test:browser"], "level": "local-source"}
+  ],
+  "pending": [
+    "Enquiry capture, editable charge UI, saved drafts, save-failure handling and print/PDF after first checkpoint approval",
+    "Full desktop and mobile workflows, other browsers and physical devices",
+    "No lint script or bundler: static ES modules served directly; no production build claimed"
+  ]
+}

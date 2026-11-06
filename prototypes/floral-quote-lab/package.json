@@ -1,0 +1,12 @@
+{
+  "name": "floral-quote-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-only quotation foundation; no runtime dependencies",
+  "scripts": {
+    "test": "node --test tests/domain.test.js",
+    "start": "node tools/serve.mjs",
+    "test:browser": "node --test tests/browser.test.js"
+  }
+}

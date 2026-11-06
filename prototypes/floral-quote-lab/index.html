@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Floral Quote Lab — Foundation</title>
+    <link rel="stylesheet" href="./src/style.css">
+    <script type="module" src="./src/app.js"></script>
+  </head>
+  <body>
+    <main>
+      <header><p class="eyebrow">FLORAL QUOTE LAB / FOUNDATION</p><h1>A considered quote,<br>from the first stem.</h1><p>Test the quotation engine with a fictional arrangement.</p></header>
+      <section aria-labelledby="quote-heading">
+        <div class="heading"><h2 id="quote-heading">Quotation workspace</h2><span class="badge">DRAFT</span></div>
+        <p>This foundation has no saved drafts. Values stay in this page until you reload.</p>
+        <form id="calculator">
+          <label>Arrangement<input value="Fictional garden bouquet" disabled></label>
+          <label>Quantity<input id="quantity" name="quantity" inputmode="numeric" value="2" required></label>
+          <label>Unit price (£)<input id="price" name="price" inputmode="decimal" value="45.50" required></label>
+          <button type="submit">Calculate draft</button>
+        </form>
+        <p id="error" role="alert"></p>
+        <p class="total">Draft total <output id="total" aria-live="polite"></output></p>
+      </section>
+      <footer>GBP • Whole-unit quantities • Tax treatment not configured<br>Foundation checkpoint — enquiry capture, saving and print layout are pending.</footer>
+    </main>
+  </body>
+</html>
