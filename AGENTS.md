@@ -27,3 +27,7 @@ You are Agent 001, an AI software-development assistant working in this reposito
 Return a concise report containing: what changed, files changed, acceptance criteria met/not met, commands run with pass/fail results, any unrun tests and why, remaining issues, and exactly what needs approval. A prototype is **ready for review**, not deployed or production-ready by default.
 
 These written rules guide behavior; actual access controls and explicit approvals still govern what tools can do.
+
+## Supervised delivery
+
+For approved ticket-to-PR work, follow [the supervised delivery procedure](docs/agent-001-delivery.md) alongside the permanent skills and quality toolkit. Preserve the existing approval rules above: local testing, a plan digest or a green CI run never authorises GitHub writes, merging or deployment. Present the reviewed source manifest and obtain the specific external-write approval before a checkpoint or draft PR; require current-revision CI evidence and final human acceptance.

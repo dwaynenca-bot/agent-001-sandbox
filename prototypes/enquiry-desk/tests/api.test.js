@@ -123,3 +123,45 @@ test('repeated failed logins are throttled and recover after the time window',as
   const blocked=await request(f.app,'/api/login',{method:'POST',json:{email:f.accounts[0].email,password:f.accounts[0].password}});assert.equal(blocked.status,429);assert.equal(blocked.headers.get('retry-after'),'60');
   f.time.now+=60001;await login(f.app,f.accounts[0]);
 });
+test('business logout rejects mutation replay without database changes and preserves independent business access',async()=>{
+  const a=await login(f.app,f.accounts[0]),b=await login(f.app,f.accounts[1]);
+  const first=await own(a,'Logout A unchanged'),second=await own(b,'Logout B unchanged');
+  const snapshot=()=>Object.fromEntries(['businesses','users','sessions','enquiries'].map(table=>[table,f.app.db.prepare(`SELECT * FROM ${table} ORDER BY 1`).all()]));
+  const isolated=async(auth,mine,foreign)=>{
+    const list=await request(f.app,'/api/enquiries',{auth});assert.equal(list.status,200);
+    assert.ok(list.body.enquiries.some(e=>e.id===mine.id));assert.ok(!list.body.enquiries.some(e=>e.id===foreign.id));
+    assert.equal((await request(f.app,'/api/enquiries/'+mine.id,{auth})).status,200);
+    for(const method of ['GET','PATCH']){
+      const before=snapshot();
+      const denied=await request(f.app,'/api/enquiries/'+foreign.id,{method,auth,...(method==='PATCH'?{json:{subject:'Cross-business forbidden'}}:{})});
+      assert.equal(denied.status,404);assert.deepEqual(denied.body,{error:'Enquiry not found'});assert.deepEqual(snapshot(),before);
+    }
+  };
+  await isolated(a,first,second);await isolated(b,second,first);
+  const logout=await request(f.app,'/api/logout',{method:'POST',auth:a});
+  assert.equal(logout.status,204);assert.ok(logout.headers.get('set-cookie').includes('Max-Age=0'));
+  assert.equal(f.app.db.prepare('SELECT count(*) AS n FROM sessions WHERE token_hash=?').get(tokenHash(a.cookie.split('=')[1])).n,0);
+  const afterLogout=snapshot();
+  // Replay the exact former cookie AND CSRF token, including against the other business.
+  for(const [path,method,json]of [
+    ['/api/enquiries','POST',input('Logged-out forbidden create')],
+    ['/api/enquiries/'+first.id,'PATCH',{subject:'Logged-out forbidden own update',status:'Closed'}],
+    ['/api/enquiries/'+second.id,'PATCH',{subject:'Logged-out forbidden foreign update',status:'Closed'}]
+  ]){
+    const denied=await request(f.app,path,{method,auth:a,json});assert.equal(denied.status,401);
+    assert.deepEqual(snapshot(),afterLogout);
+  }
+  for(const path of ['/api/session','/api/enquiries','/api/enquiries/'+first.id,'/api/enquiries/'+second.id]){
+    assert.equal((await request(f.app,path,{auth:a})).status,401);assert.deepEqual(snapshot(),afterLogout);
+  }
+  const session=await request(f.app,'/api/session',{auth:b});assert.equal(session.status,200);assert.equal(session.body.user.businessName,f.accounts[1].business);
+  await isolated(b,second,first);
+  const updated=await request(f.app,'/api/enquiries/'+second.id,{method:'PATCH',auth:b,json:{status:'In progress'}});
+  assert.equal(updated.status,200);assert.equal(updated.body.status,'In progress');
+  const third=await own(b,'B still authenticated after A logout');
+  const freshA=await login(f.app,f.accounts[0]);assert.notEqual(freshA.cookie,a.cookie);assert.notEqual(freshA.csrf,a.csrf);
+  await isolated(freshA,first,second);await isolated(b,second,first);
+  assert.equal((await request(f.app,'/api/enquiries/'+third.id,{auth:freshA})).status,404);
+  assert.equal((await request(f.app,'/api/enquiries/'+first.id,{auth:freshA})).body.subject,'Logout A unchanged');
+  assert.equal((await request(f.app,'/api/enquiries/'+second.id,{auth:b})).body.subject,'Logout B unchanged');
+});
