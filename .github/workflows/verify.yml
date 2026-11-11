@@ -3,7 +3,7 @@ on:
   push:
     branches: [feature/stock-watchdog-v01]
   pull_request:
-    branches: [main]
+    branches: [main, feature/stock-watchdog-v01]
   workflow_dispatch:
 jobs:
   verify:
@@ -18,6 +18,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Agent 001 CRM mapping identity tests
+        run: node --test experiments/niveous-crm-sync/tests/mapping.node-check.mjs
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
